@@ -2,6 +2,7 @@
 #include <winsock2.h>
 #include <string>
 #include <fstream>
+
 #pragma comment(lib, "ws2_32.lib")
 
 void uploadFile(SOCKET clientSocket, const std::string& filename) {
@@ -36,17 +37,19 @@ void downloadFile(SOCKET clientSocket, const std::string& filename) {
 
 int main(int argc, char* argv[]) {
     if (argc != 4) {
-        std::cerr << "Usage: ./lpf ip:port -upload|-download filename" << std::endl;
+        std::cerr << "Usage: ./lpf user@ip:port -upload|-download|-delete filename" << std::endl;
         return 1;
     }
 
-    std::string ipPort = argv[1];
+    std::string userIpPort = argv[1];
     std::string command = argv[2];
     std::string filename = argv[3];
 
-    size_t colonPos = ipPort.find(':');
-    std::string ip = ipPort.substr(0, colonPos);
-    int port = std::stoi(ipPort.substr(colonPos + 1));
+    size_t atPos = userIpPort.find('@');
+    size_t colonPos = userIpPort.find(':');
+    std::string user = userIpPort.substr(0, atPos);
+    std::string ip = userIpPort.substr(atPos + 1, colonPos - atPos - 1);
+    int port = std::stoi(userIpPort.substr(colonPos + 1));
 
     WSADATA wsaData;
     WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -64,16 +67,20 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    std::string commandStr;
     if (command == "-upload") {
-        std::string uploadCommand = "upload " + filename;
-        send(clientSocket, uploadCommand.c_str(), uploadCommand.size() + 1, 0);
+        commandStr = user + " upload " + filename;
+        send(clientSocket, commandStr.c_str(), commandStr.size() + 1, 0);
         uploadFile(clientSocket, filename);
     } else if (command == "-download") {
-        std::string downloadCommand = "download " + filename;
-        send(clientSocket, downloadCommand.c_str(), downloadCommand.size() + 1, 0);
+        commandStr = user + " download " + filename;
+        send(clientSocket, commandStr.c_str(), commandStr.size() + 1, 0);
         downloadFile(clientSocket, filename);
+    } else if (command == "-delete") {
+        commandStr = user + " delete " + filename;
+        send(clientSocket, commandStr.c_str(), commandStr.size() + 1, 0);
     } else {
-        std::cerr << "Commande non reconnue. Utilisez -upload ou -download." << std::endl;
+        std::cerr << "Commande non reconnue. Utilisez -upload, -download, ou -delete." << std::endl;
     }
 
     closesocket(clientSocket);
